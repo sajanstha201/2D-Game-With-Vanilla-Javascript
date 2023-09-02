@@ -1,5 +1,5 @@
 canvas=document.getElementById("canvas1");
-canvas.width=1500;
+canvas.width=1300;
 canvas.height=500;
 const context=canvas.getContext('2d');
 class player{
