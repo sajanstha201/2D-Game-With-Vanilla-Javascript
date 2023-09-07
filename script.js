@@ -17,7 +17,7 @@ class player{
         this.framemax=37;
         this.speed=5;
         this.collision=0;
-        this.life=1;
+        this.life=10;
         this.bulletrem=new bulletrem();
         this.image=document.getElementById("player");
         this.score=0;
