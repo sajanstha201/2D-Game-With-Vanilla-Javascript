@@ -16,14 +16,7 @@ body{
 }
 #player, #bullet,#layer1,#layer2
 ,#layer3,#layer4,#enemy1,#enemy2,#drone,
-#whale,#gameover,#gears,#pause,
-#heart{
+#whale,#gameover,#gears,
+#heart,#lucky,#restartbtn,#playbtn,#pausebtn{
     display: none;
-}
-#start_btn{
-    position:absolute;
-    left:43%;
-    top:45%;
-    height:200px;
-    width:200px;
 }

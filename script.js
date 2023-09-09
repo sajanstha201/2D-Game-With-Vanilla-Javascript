@@ -1,51 +1,55 @@
 canvas=document.getElementById("canvas1");
-canvas.width=1300;
+canvas.width=1250;
 canvas.height=500;
 context=canvas.getContext('2d');
 class player{
     constructor(game){
-        this.destroy=false;
         this.game=game;
         this.height=190;
-        this.levelup=0;
+        this.luckypointmax=1;
+        this.luckypoint=0;
+        this.levelup=false;
+        this.levelupmaxtime=10000;
+        this.leveluptime=0;
         this.width=120;
         this.x=25;
         this.y=0.3*this.game.height;
         this.miny=60;//this tells what is the limit of palyer to go to up 
         this.frameX=0;
-        this.frameY=this.levelup;
+        this.frameY=0;
         this.framemax=37;
         this.speed=5;
         this.collision=0;
-        this.life=10;
-        this.bulletrem=new bulletrem();
+        this.life=5;
         this.image=document.getElementById("player");
         this.score=0;
         this.enemyEscape=0;
-        this.enemyEscapeMaxLimit=10;
+        this.enemyEscapeMaxLimit=5;
         this.numberOfParticles=50;
         this.initalParticles=0;
     }
     draw(context){
         if(this.game.debug===true)context.strokeRect(this.x,this.y,this.width,this.height);
-        this.bulletrem.draw(context);
         context.drawImage(this.image,this.frameX*this.width,this.frameY*this.height,this.width,this.height,
             this.x,this.y,this.width,this.height);
     }
     update(deltatime){
+        this.playermove();
+        this.playercollision();
+        this.levelupcheck(deltatime);
+        this.checkDestruction();
+    }
+    playermove(){
         if(this.game.keys===-1)
             if((this.y+this.height)<this.game.height)
                 this.y+=this.speed;
         if(this.game.keys===1)
             if(this.y>this.miny)
                 this.y-=this.speed; 
-                this.bulletrem.update(deltatime)
         if(this.frameX<this.framemax)
             this.frameX++;
         else
-            this.frameX  =0;
-        //this is for bullet update
-        this.playercollision();
+            this.frameX=0;
     }
     playercollision(){
         this.game.enemy.enemies.forEach(enem=>{
@@ -56,8 +60,32 @@ class player{
             }
         })
     }
+    levelupcheck(deltatime){
+        this.frameY=(this.levelup===true)?1:0;
+        if(this.levelup===true){
+            this.leveluptime+=deltatime;
+        }
+        if(this.leveluptime>=this.levelupmaxtime){
+            this.speed-=3;
+            this.leveluptime=0;
+            this.levelup=false;
+        }
+        if(this.luckypoint>=this.luckypointmax){
+            this.speed+=3;;
+            this.levelup=true;
+            this.luckypoint=0;
+        }
+    }
+    checkDestruction(){
+        if(this.collision>=this.life||this.enemyEscape>=this.enemyEscapeMaxLimit){
+            this.game.gameover=true;
+            this.selfDestroy();
+            this.game.enemy.selfDestroy();
+            this.game.start=false;
+        }
+
+    }
     selfDestroy(){
-        this.destroy=true;
         while(this.initalParticles<this.numberOfParticles){
             this.game.particles.push(new particle(this.game,this.x,this.y,this.width,this.height))
             this.initalParticles++;
@@ -81,16 +109,15 @@ class bulletrem{
         this.y=40;
         this.width=5;
         this.height=20;
-        this.bulletremaining= 25;
+        this.bulletremaining=15;
         this.timer=500;
-        this.bulletmax=25;
+        this.bulletmax=20;
         this.time=0;
         this.imgBullet=document.getElementById("bullet");
     }
     draw(context){
         var i=0;
         for(i=0;i<this.bulletremaining;i++){
-           // if(this.game.debug===true)context.strokeRect(this.x+i*5,this.y,this.width,this.height);
             context.drawImage(this.imgBullet,this.x+i*5,this.y,this.width,this.height); 
         }
 
@@ -107,10 +134,11 @@ class bulletrem{
 class bullet{
     constructor(game){
         this.game=game;
+        this.levelup=(this.game.player.levelup===true)?true:false;
         this.shot=0;
-        this.height=20;
-        this.width=40;
-        this.speed=7;
+        this.height=(this.game.player.levelup===true)?40:20;
+        this.width=(this.game.player.levelup===true)?80:40;
+        this.speed=(this.game.player.levelup===true)?14:7;
         this.x=this.game.player.x+this.game.player.width-35;
         this.y=this.game.player.y+25;
         this.imgBullet=document.getElementById("bullet");
@@ -183,7 +211,7 @@ class enemy{
         this.x=this.game.width;
         this.y=0;
         this.time=0;
-        this.timeInterval=3000;
+        this.timeInterval=2000;
     }
     update(deltatime){
         this.time+=deltatime;
@@ -191,20 +219,47 @@ class enemy{
             this.time=0;
             this.addEnemy();
         }
+        this.enemiesUpdate(deltatime);
+        this.enemiesCheckDestroy();
+        
+    }
+    draw(context){
+        this.enemies.forEach(enemy=>{
+            if(this.game.debug===true)context.strokeRect(enemy.x,enemy.y,enemy.width,enemy.height);
+            context.drawImage(enemy.image,enemy.framex*enemy.width,enemy.framey*enemy.height,
+                enemy.width,enemy.height,enemy.x,enemy.y,enemy.width,enemy.height);
+        })
+    }
+    enemiesUpdate(deltatime){
         this.enemies.forEach(enemy=>{
             enemy.x-=enemy.speed;
             if(enemy.framex===enemy.framemax)
                 enemy.framex=0
             else
                 enemy.framex++;
+        })
+    }
+    enemiesCheckDestroy(){
+        this.enemies.forEach(enemy=>{
             this.game.bullets.forEach(bullet=>{
                 if(this.checkCollision(bullet,enemy)){
                     bullet.destroy();
                     this.game.particles.push(new particle(this.game,enemy.x,enemy.y,enemy.width,enemy.height));
                     enemy.collision++;
                 }
+                if(bullet.levelup===true){
+                    if(enemy.collision>=1){
+                        this.destroy(enemy);
+                        this.game.player.score++;
+                    }
+                }
             })
             if(enemy.collision>=enemy.collisionlimit){
+                if(enemy.type==="lucky"){
+                    if(enemy.level===0)this.game.bulletrem.bulletremaining=this.game.bulletrem.bulletmax;
+                    else this.game.player.luckypoint++;
+                }
+                if(enemy.type==="whale")this.game.player.score++;
                 this.destroy(enemy);
                 this.game.player.score++;
             }
@@ -214,13 +269,7 @@ class enemy{
             }
         })
     }
-    draw(context){
-        this.enemies.forEach(enemy=>{
-            if(this.game.debug===true)context.strokeRect(enemy.x,enemy.y,enemy.width,enemy.height);
-            context.drawImage(enemy.image,enemy.framex*enemy.width,enemy.framey*enemy.height,
-                enemy.width,enemy.height,enemy.x,enemy.y,enemy.width,enemy.height);
-        })
-    }
+
     addEnemy(){
         var x=Math.random();
         if(x<0.2)
@@ -231,6 +280,8 @@ class enemy{
             this.enemies.push(new drone());
         else if(x<0.8)
             this.enemies.push(new whale());
+        else
+            this.enemies.push(new lucky());
     }
     destroy(enemy){
         for(var i=0;i<enemy.numberOfParticles;i++){
@@ -327,6 +378,26 @@ class whale extends enemy{
         this.type="whale";
     }
 }
+class lucky extends enemy{
+    constructor(){
+        super(game);
+        this.v=Math.random();
+        if(this.v<0.5)this.y=this.v*this.game.height+this.game.player.miny;
+        else this.y=this.v*this.game.height*0.7-this.game.player.miny;
+        this.height=95;
+        this.width=99;
+        this.framex=0;
+        this.framemax=37;
+        this.framey=(this.v<0.3)?0:((this.v<0.6)?0:1);
+        this.collision=0;
+        this.collisionlimit=3;
+        this.speed=3;
+        this.image=document.getElementById("lucky");
+        this.numberOfParticles=3;
+        this.type="lucky";
+        this.level=this.framey;
+    }
+}
 class backGround{
     constructor(game){
         this.game=game;
@@ -381,70 +452,44 @@ class input{
         this.arrowDown=0;
         this.null=0;
         this.space=0;
-        this.playermove();
-        this.start_btn();
-        this.pause_btn();
-
-    }
-    playermove(){
-        window.addEventListener('keydown',e=>{   
-            if(e.key==="ArrowUp")
+        window.addEventListener('keydown',e=>{  
+            if(this.game.start===true){
+                if(e.key==="ArrowUp")
                 this.game.keys=1;
             else if(e.key==="ArrowDown")
                 this.game.keys=-1;
             if(e.key===" "){
-                if(this.game.player.bulletrem.bulletremaining>0){
-                    if(this.game.pause===false){
+                if(this.game.bulletrem.bulletremaining>0){
+                    if(this.game.pauseenv.status===false){
                         this.game.bullets.push(new bullet(this.game));
-                        this.game.player.bulletrem.bulletremaining--;
+                        this.game.bulletrem.bulletremaining--;
                     }
                 }
             }
             if(e.key==='d')
                 this.game.debug=!this.game.debug;
+            } 
+
         })
     }
-    pause_btn(){
-        document.getElementById("canvas1").addEventListener('click',e=>{
-            if(this.game.start===true)this.game.ui.pause(e);
-    })
-    }
-    start_btn(){
-        this.game.ui.start_btn.addEventListener('mouseover',e=>{
-            this.game.ui.start_btn.style.width=210+'px';
-            this.game.ui.start_btn.style.height=210+'px';
-        })
-        this.game.ui.start_btn.addEventListener('mouseout',e=>{
-            this.game.ui.start_btn.style.width=200+'px';
-            this.game.ui.start_btn.style.height=200+'px';    
-        })
-        this.game.ui.start_btn.addEventListener('click',e=>{
-            this.game.ui.start_btn.style.display='none';
-            this.game.start=true;
-            this.game.player.initilize();
-        })
-    }
+
 }
 class UI{
     constructor(game){
     this.game=game;
-    this.playerlost=false;
-    this.start_btn=document.getElementById("start_btn");
-    this.btn_size=0.2*this.game.width;
-    this.pauseP=10;
-    this.pauseSize=35;
-    this.scoreX=this.game.width*0.5;
-    this.scoreY=32;
     this.heart=document.getElementById('heart');
     this.heartsize=15;
-    this.heartx=this.pauseSize+this.pauseP+5;
+    this.heartx=50;
     this.hearty=15;
     }
-    update(){
-            if(this.game.pause===false)this.pauseimg=document.getElementById("pause");
-            else this.pauseimg=document.getElementById("start_btn");
-    }
     draw(context){
+        this.scoreDisplay(context);
+        this.displayAfterGameover(context);
+        this.drawheart(context);
+    }
+    scoreDisplay(context){
+        this.scoreX=this.game.width*0.5;
+        this.scoreY=32;
         context.fillStyle="yellow";
         context.font='25px Arial';
         context.textAlign='center';
@@ -453,41 +498,161 @@ class UI{
         context.font='50px Arial';
         context.fillStyle='white';
         context.textAlign='center';
-        if(this.game.player.collision>=this.game.player.life
-            ||this.game.player.enemyEscape>=this.game.player.enemyEscapeMaxLimit){
-            context.fillText('YOUR SCORE '+this.game.player.score,0.5*this.game.width,0.4*this.game.height);
-            context.fillText("HIGHEST SCORE "+localStorage.getItem("highestscore"),
-                                0.5*this.game.width,0.2*this.game.height)
-            this.start_btn.style.display='block';
-            this.game.start=false;
-            this.game.player.selfDestroy();
-            this.game.enemy.selfDestroy();
-        }
-        if(this.game.start===true){
-            if(this.game.debug===true)context.strokeRect(this.pauseP,this.pauseP,this.pauseSize,this.pauseSize);
-            context.drawImage(this.pauseimg,this.pauseP,this.pauseP,this.pauseSize,this.pauseSize);
-        }
-        this.drawlife(context);
     }
-    drawlife(context){
+    drawheart(context){
         var i;
         for(i=0;i<this.game.player.life-this.game.player.collision;i++){
             context.drawImage(this.heart,i*(this.heartsize+3)+this.heartx,this.hearty
             ,this.heartsize,this.heartsize);
         }
     }
-    pause(event){
-        if(this.pauseP<=event.offsetX&&event.offsetX<=this.pauseP+this.pauseSize&&
-            this.pauseP<=event.offsetY&&event.offsetY<=this.pauseP+this.pauseSize){
-                console.log("sajan shrestha");
-                this.game.pause=!this.game.pause;
+    displayAfterGameover(context){
+        if(this.game.gameover===true){
+            context.fillText('YOUR SCORE '+this.game.player.score,0.5*this.game.width,0.4*this.game.height);
+            context.fillText("HIGHEST SCORE "+localStorage.getItem("highestscore"),
+                                0.5*this.game.width,0.2*this.game.height)
+        }
+    }
+}
+class pause{
+    constructor(game){
+        this.game=game;
+        this.status=false;
+        this.playbtn=document.getElementById("playbtn");
+        this.restartbtn=document.getElementById("restartbtn");
+        this.pausebtn=document.getElementById("pausebtn");
+        this.restartbtnsize=170;
+        this.restartbtnx=0.25*this.game.width;
+        this.restartbtny=0.15*this.game.width;
+        this.playbtnsize=200;
+        this.playbtnx=0.5*this.game.width;
+        this.playbtny=0.14*this.game.width;
+        this.playbtnexpand=false;
+        this.restartbtnexpand=false;
+        this.leftpausex=10;
+        this.leftpausey=10;
+        this.leftpausesize=35;
+        this.leftpausebtnexpand=false;
+        this.pauseBtnReact();
+        this.leftpauseBtnReact();
+    }
+    pauseBtnReact(){
+  
+        document.getElementById('canvas1').addEventListener('mousemove',e=>{
+                  //this is for restart button
+            if(this.checkBoxEvent(e,this.restartbtnx,this.restartbtny,this.restartbtnsize,this.restartbtnsize))
+                    this.restartbtnexpand=true;
+            else
+                this.restartbtnexpand=false;
+                //this is for resume button
+            if(this.checkBoxEvent(e,this.playbtnx,this.playbtny,this.playbtnsize,this.playbtnsize))
+                this.playbtnexpand=true;
+            else
+                this.playbtnexpand=false;
+        })
+        document.getElementById('canvas1').addEventListener('click',e=>{
+            if(this.status===true){
+                //this is for restart button
+                if(this.checkBoxEvent(e,this.restartbtnx,this.restartbtny,this.restartbtnsize,this.restartbtnsize)){
+                    this.game.gameover=true;
+                    this.game.player.selfDestroy();
+                    this.game.enemy.selfDestroy();
+                    this.game.start=false;
+                    this.status=false;
+                }
+                // this is for resume button
+                if(this.checkBoxEvent(e,this.playbtnx,this.playbtny,this.playbtnsize,this.playbtnsize))
+                    this.status=false;
             }
+
+        })
+    }
+    leftpauseBtnReact(){
+        document.getElementById('canvas1').addEventListener('mousemove',e=>{
+            if(this.checkBoxEvent(e,this.leftpausex,this.leftpausey,this.leftpausesize,this.leftpausesize))
+                this.leftpausebtnexpand=true;
+            else
+                this.leftpausebtnexpand=false;
+        })
+        document.getElementById("canvas1").addEventListener('click',e=>{
+            if(this.game.start===true){
+               if(this.checkBoxEvent(e,this.leftpausex,this.leftpausey,this.leftpausesize,this.leftpausesize))
+                    this.game.pauseenv.status=!this.game.pauseenv.status;
+            }
+    })
+    }
+    draw(context){
+        if(this.status===true){
+            //this is for restart button drawing
+            if(this.restartbtnexpand===true)this.drawbtn(this.restartbtn,this.restartbtnx,this.restartbtny,
+                this.restartbtnsize+10,this.restartbtnsize+10);
+            else this.drawbtn(this.restartbtn,this.restartbtnx,this.restartbtny,
+                this.restartbtnsize,this.restartbtnsize);
+            //this is for resume button drawing
+            if(this.playbtnexpand===true)this.drawbtn(this.playbtn,this.playbtnx,this.playbtny,
+                this.playbtnsize+10,this.playbtnsize+10);
+            else this.drawbtn(this.playbtn,this.playbtnx,this.playbtny,
+                this.playbtnsize,this.playbtnsize);
+        }
+        //this is for left pause button drawing
+        if(this.status===false&&this.game.start===true){
+            if(this.game.debug===true)context.strokeRect(this.pauseP,this.pauseP,this.pauseSize,this.pauseSize);
+            if(this.leftpausebtnexpand===true)
+                this.drawbtn(this.pausebtn,this.leftpausex,this.leftpausey,this.leftpausesize+2,this.leftpausesize+2);
+            else 
+                this.drawbtn(this.pausebtn,this.leftpausex,this.leftpausey,this.leftpausesize,this.leftpausesize)
+        }
+    }
+    drawbtn(img,x,y,width,height){
+        const ctx=document.getElementById('canvas1').getContext('2d');
+        ctx.drawImage(img,x,y,width,height);
+    }
+    checkBoxEvent(event,x,y,width,height){
+        return(x<=event.offsetX&&event.offsetX<=x+width&&y<=event.offsetY&&event.offsetY<=y+height)
+    }
+}
+class startenv{
+    constructor(game){
+        this.game=game;
+        this.startbtnx=0.4*this.game.width;
+        this.startbtny=0.4*this.game.height;
+        this.startbtnsize=200;
+        this.startbtnexpand=false;
+        this.startbtnReact();
+        this.startbtnimg=document.getElementById("playbtn");
+    }
+    startbtnReact(){
+        document.getElementById('canvas1').addEventListener('mousemove',e=>{
+            if(this.checkBoxEvent(e,this.startbtnx,this.startbtny,this.startbtnsize,this.startbtnsize))
+                this.startbtnexpand=true;
+            else
+                this.startbtnexpand=false;
+        })
+        document.getElementById('canvas1').addEventListener('click',e=>{
+            console.log("sajan shrestha");
+            if(this.game.start===false){
+                if(this.checkBoxEvent(e,this.startbtnx,this.startbtny,this.startbtnsize,this.startbtnsize)){
+                    this.game.player.initilize();
+                    this.game.start=true;
+                    this.game.gameover=false;
+                }
+            }
+        })
+    }
+    draw(context){
+        if(this.startbtnexpand===true)context.drawImage(this.startbtnimg,this.startbtnx,this.startbtny,
+            this.startbtnsize+10,this.startbtnsize+10);
+        else context.drawImage(this.startbtnimg,this.startbtnx,this.startbtny,
+            this.startbtnsize,this.startbtnsize);
+    }
+    checkBoxEvent(event,x,y,width,height){
+        return(x<=event.offsetX&&event.offsetX<=x+width&&y<=event.offsetY&&event.offsetY<=y+height)
     }
 }
 class game{
     constructor(canvas){
         this.start=false;
-        this.pause=false;
+        this.gameover=false;
         this.height=canvas.height;
         this.width=canvas.width;
         this.player=new player(this);
@@ -498,40 +663,39 @@ class game{
         this.debug=false;
         this.enemy=new enemy(this);
         this.background=new backGround(this);
+        this.bulletrem=new bulletrem();
         this.enteredEnemy=0;
         this.particles=[];
         this.bullets=[];
+        this.pauseenv=new pause(this);
+        this.startenv=new startenv(this);
         try{
             localStorage.setItem("highestscore",localStorage.getItem("highestscore"));
         }
         catch(error){
             localStorage.setItem("highestscore",0);
         }
-
-        //for debugging only
-        //this.particle=new particle(this,200,200);
     }
     update(deltatime){
-        if(this.pause===false){
+        if(this.pauseenv.status===false){
             this.background.update();
-            if(this.start===true&&this.player.destroy===false)this.player.update(deltatime);
+            this.player.update(deltatime);
             if(this.start===true)this.enemy.update(deltatime);
             this.background.layer4.update();
         }
-        this.ui.update();
         this.particles.forEach(particle=>{
             particle.update();
         })
         this.bullets.forEach(bullet=>{
             bullet.update();
         })
+        this.bulletrem.update(deltatime);
         if(parseInt(localStorage.getItem("highestscore"))<this.player.score)
             localStorage.setItem("highestscore",this.player.score);
-
     }
     draw(context){
         this.background.draw(context);   
-        if(this.player.destroy===false)this.player.draw(context);
+        if(this.gameover===false)this.player.draw(context);
         this.enemy.draw(context);  
         this.background.layer4.draw(context);
         this.ui.draw(context);
@@ -541,6 +705,9 @@ class game{
         this.bullets.forEach(bullet=>{
             bullet.draw(context);
         })
+        if(this.start===true)this.bulletrem.draw(context);
+        if(this.start===false||this.gameover===true)this.startenv.draw(context);
+        this.pauseenv.draw(context);
         //for debugging only
        // this.particle.draw(context);
     }
