@@ -524,15 +524,16 @@ class pause{
         this.restartbtnsize=170;
         this.restartbtnx=0.25*this.game.width;
         this.restartbtny=0.15*this.game.width;
-        this.playbtnsize=200;
+        this.playbtnsize=210;
         this.playbtnx=0.5*this.game.width;
-        this.playbtny=0.14*this.game.width;
+        this.playbtny=0.135*this.game.width;
         this.playbtnexpand=false;
         this.restartbtnexpand=false;
         this.leftpausex=10;
-        this.leftpausey=10;
+        this.leftpausey=15;
         this.leftpausesize=35;
         this.leftpausebtnexpand=false;
+        this.expandvalue=3;
         this.pauseBtnReact();
         this.leftpauseBtnReact();
     }
@@ -585,12 +586,12 @@ class pause{
         if(this.status===true){
             //this is for restart button drawing
             if(this.restartbtnexpand===true)this.drawbtn(this.restartbtn,this.restartbtnx,this.restartbtny,
-                this.restartbtnsize+10,this.restartbtnsize+10);
+                this.restartbtnsize+this.expandvalue,this.restartbtnsize+this.expandvalue);
             else this.drawbtn(this.restartbtn,this.restartbtnx,this.restartbtny,
                 this.restartbtnsize,this.restartbtnsize);
             //this is for resume button drawing
             if(this.playbtnexpand===true)this.drawbtn(this.playbtn,this.playbtnx,this.playbtny,
-                this.playbtnsize+10,this.playbtnsize+10);
+                this.playbtnsize+this.expandvalue,this.playbtnsize+this.expandvalue);
             else this.drawbtn(this.playbtn,this.playbtnx,this.playbtny,
                 this.playbtnsize,this.playbtnsize);
         }
@@ -620,6 +621,7 @@ class startenv{
         this.startbtnexpand=false;
         this.startbtnReact();
         this.startbtnimg=document.getElementById("playbtn");
+        this.expandvalue=3;
     }
     startbtnReact(){
         document.getElementById('canvas1').addEventListener('mousemove',e=>{
@@ -641,7 +643,7 @@ class startenv{
     }
     draw(context){
         if(this.startbtnexpand===true)context.drawImage(this.startbtnimg,this.startbtnx,this.startbtny,
-            this.startbtnsize+10,this.startbtnsize+10);
+            this.startbtnsize+this.expandvalue,this.startbtnsize+this.expandvalue);
         else context.drawImage(this.startbtnimg,this.startbtnx,this.startbtny,
             this.startbtnsize,this.startbtnsize);
     }
