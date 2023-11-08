@@ -509,8 +509,6 @@ class UI{
     displayAfterGameover(context){
         if(this.game.gameover===true){
             context.fillText('YOUR SCORE '+this.game.player.score,0.5*this.game.width,0.4*this.game.height);
-            //context.fillText("HIGHEST SCORE "+localStorage.getItem("highestscore"),
-                             //   0.5*this.game.width,0.2*this.game.height)
         }
     }
 }
